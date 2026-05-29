@@ -180,6 +180,12 @@ class EmailSenderApp:
 
         ttk.Button(
             buttons_frame,
+            text="Предпросмотр",
+            command=self._preview_email
+        ).pack(side=tk.LEFT, padx=3)
+
+        ttk.Button(
+            buttons_frame,
             text="Сохранить рассылку",
             command=self._save_draft
         ).pack(side=tk.LEFT, padx=3)
@@ -341,7 +347,18 @@ class EmailSenderApp:
 
     def _save_draft(self):
         data = self._get_form_data()
-        path = save_draft(data)
+
+        file_path = filedialog.asksaveasfilename(
+            title="Сохранить рассылку",
+            initialdir="drafts",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")]
+        )
+
+        if not file_path:
+            return
+
+        path = save_draft(data, file_path)
 
         self._save_current_settings()
 
@@ -392,6 +409,39 @@ class EmailSenderApp:
             self.attachments_listbox.insert(tk.END, path)
 
         self._on_smtp_changed()
+
+    def _preview_email(self):
+        data = self._get_form_data()
+
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title("Предпросмотр письма")
+        preview_window.geometry("700x600")
+
+        text = tk.Text(preview_window, wrap=tk.WORD)
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        attachments_text = "\n".join(data["attachments"]) if data["attachments"] else "Нет вложений"
+
+        preview_content = (
+            f"SMTP-сервис: {data['smtp_service']}\n"
+            f"Отправитель: {data['sender_email']}\n"
+            f"Количество получателей: {len(data['to'])}\n\n"
+            f"Кому будет отправлено отдельно:\n"
+            f"{chr(10).join(data['to'])}\n\n"
+            f"Копия CC:\n"
+            f"{chr(10).join(data['cc']) if data['cc'] else 'Нет'}\n\n"
+            f"Скрытая копия BCC:\n"
+            f"{chr(10).join(data['bcc']) if data['bcc'] else 'Нет'}\n\n"
+            f"Тема:\n"
+            f"{data['subject']}\n\n"
+            f"Текст письма:\n"
+            f"{data['body']}\n\n"
+            f"Вложения:\n"
+            f"{attachments_text}"
+        )
+
+        text.insert("1.0", preview_content)
+        text.config(state=tk.DISABLED)
 
     def _send_emails(self):
         data = self._get_form_data()
