@@ -78,6 +78,10 @@ def send_bulk_emails(
 
     attachment_names = ", ".join(os.path.basename(x) for x in attachment_paths)
 
+    success_count = 0
+    error_count = 0
+    failed_recipients = []
+
     with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
         if use_tls:
             server.starttls()
@@ -118,6 +122,8 @@ def send_bulk_emails(
                     error=""
                 )
 
+                success_count += 1
+
                 if log_callback:
                     log_callback(f"Успешно отправлено: {recipient}")
 
@@ -137,7 +143,16 @@ def send_bulk_emails(
                     error=str(exc)
                 )
 
+                error_count += 1
+                failed_recipients.append(recipient)
+
                 if log_callback:
                     log_callback(f"Ошибка отправки {recipient}: {exc}")
 
             time.sleep(max(0, delay_seconds))
+
+    return {
+                "success_count": success_count,
+                "error_count": error_count,
+                "failed_recipients": failed_recipients
+            }

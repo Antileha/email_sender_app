@@ -153,13 +153,18 @@ class EmailSenderApp:
         )
 
     def _paste_password(self):
-
         try:
             password = self.root.clipboard_get()
 
-            self.password_var.set(
-                password.strip()
+            password = (
+                password
+                .replace(" ", "")
+                .replace("\n", "")
+                .replace("\t", "")
+                .strip()
             )
+
+            self.password_var.set(password)
 
         except Exception:
             messagebox.showerror(
@@ -241,11 +246,14 @@ class EmailSenderApp:
             command=self._paste_password
         ).grid(row=1, column=4, padx=5, sticky=tk.W)
 
-        ttk.Button(
+        self.show_password_button = ttk.Button(
             smtp_frame,
-            text="Показать",
-            command=self._toggle_password
-        ).grid(row=1, column=5, padx=5)
+            text="Показать"
+        )
+        self.show_password_button.grid(row=1, column=5, padx=5)
+
+        self.show_password_button.bind("<ButtonPress-1>", self._show_password)
+        self.show_password_button.bind("<ButtonRelease-1>", self._hide_password)
 
         ttk.Label(smtp_frame, text="Задержка, сек:").grid(row=1, column=6, sticky=tk.W, pady=5)
 
@@ -412,12 +420,12 @@ class EmailSenderApp:
         self.log_text = tk.Text(log_frame, height=8)
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
-    def _toggle_password(self):
+    def _show_password(self, event=None):
+        self.password_entry.config(show="")
 
-        if self.password_entry.cget("show") == "*":
-            self.password_entry.config(show="")
-        else:
-            self.password_entry.config(show="*")
+    def _hide_password(self, event=None):
+        self.password_entry.config(show="*")
+
 
     def _load_default_values(self):
         self.smtp_service_var.set(self.settings.get("last_smtp_service", "Yandex"))
@@ -439,11 +447,25 @@ class EmailSenderApp:
     def _add_attachment(self):
         paths = filedialog.askopenfilenames(title="Выберите файлы для вложения")
 
+        blocked_extensions = {".json", ".py", ".exe", ".bat", ".cmd", ".ps1"}
+
         for path in paths:
+            ext = path.lower().split(".")[-1]
+            ext = "." + ext
+
+            if ext in blocked_extensions:
+                confirm = messagebox.askyesno(
+                    "Предупреждение",
+                    f"Файл имеет служебное или потенциально опасное расширение:\n\n{path}\n\n"
+                    "Вы действительно хотите добавить его во вложения?"
+                )
+
+                if not confirm:
+                    continue
+
             if path not in self.attachments:
                 self.attachments.append(path)
                 self.attachments_listbox.insert(tk.END, path)
-
     def _remove_attachment(self):
         selection = self.attachments_listbox.curselection()
 
@@ -700,7 +722,7 @@ class EmailSenderApp:
         self._log(f"Отправка тестового письма на {test_email}...")
 
         try:
-            send_bulk_emails(
+            result = send_bulk_emails(
                 smtp_service=data["smtp_service"],
                 custom_server=data["custom_server"],
                 custom_port=int(data["custom_port"] or 587),
@@ -717,9 +739,15 @@ class EmailSenderApp:
                 log_callback=self._log
             )
 
+            self.progress_label_var.set(
+                f"Успешно: {result['success_count']}, ошибок: {result['error_count']}"
+            )
+
             messagebox.showinfo(
                 "Готово",
-                "Тестовое письмо отправлено."
+                f"Тестовое письмо отправлено.\n"
+                f"Успешно: {result['success_count']}\n"
+                f"Ошибок: {result['error_count']}"
             )
 
         except Exception as exc:
@@ -783,7 +811,7 @@ class EmailSenderApp:
         self._log("Начата отправка...")
 
         try:
-            send_bulk_emails(
+            result = send_bulk_emails(
                 smtp_service=data["smtp_service"],
                 custom_server=data["custom_server"],
                 custom_port=int(data["custom_port"] or 587),
@@ -800,9 +828,16 @@ class EmailSenderApp:
                 log_callback=self._log
             )
 
+            self.progress_label_var.set(
+                f"Успешно: {result['success_count']}, ошибок: {result['error_count']}"
+            )
+
             messagebox.showinfo(
                 "Готово",
-                "Рассылка завершена. История сохранена в Excel."
+                f"Рассылка завершена.\n"
+                f"Успешно: {result['success_count']}\n"
+                f"Ошибок: {result['error_count']}\n\n"
+                f"История сохранена в Excel."
             )
 
         except Exception as exc:
