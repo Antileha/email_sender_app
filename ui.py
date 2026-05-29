@@ -6,6 +6,7 @@ from draft_manager import save_draft, load_draft
 from email_parser import parse_emails, validate_emails, find_cross_duplicates
 from mail_sender import send_bulk_emails
 from settings_manager import load_settings, save_settings
+from excel_import import load_emails_from_excel
 
 
 class EmailSenderApp:
@@ -173,6 +174,12 @@ class EmailSenderApp:
 
         ttk.Button(
             buttons_frame,
+            text="Импорт Excel",
+            command=self._import_excel
+        ).pack(side=tk.LEFT, padx=3)
+
+        ttk.Button(
+            buttons_frame,
             text="Сохранить рассылку",
             command=self._save_draft
         ).pack(side=tk.LEFT, padx=3)
@@ -249,6 +256,38 @@ class EmailSenderApp:
             "delay_seconds": self.delay_var.get().strip()
         }
 
+    def _import_excel(self):
+
+        file_path = filedialog.askopenfilename(
+            title="Выберите Excel файл",
+            filetypes=[
+                ("Excel files", "*.xlsx *.xlsm")
+            ]
+        )
+
+        if not file_path:
+            return
+
+        try:
+            emails = load_emails_from_excel(file_path)
+
+            self.to_text.delete("1.0", tk.END)
+
+            self.to_text.insert(
+                "1.0",
+                "\n".join(emails)
+            )
+
+            messagebox.showinfo(
+                "Импорт",
+                f"Загружено {len(emails)} адресов"
+            )
+
+        except Exception as exc:
+            messagebox.showerror(
+                "Ошибка импорта",
+                str(exc)
+            )
     def _check_emails(self):
         data = self._get_form_data()
 
