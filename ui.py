@@ -95,7 +95,16 @@ class EmailSenderApp:
         ttk.Label(recipients_frame, text="Кому:").grid(row=0, column=0, sticky=tk.NW)
 
         self.to_text = tk.Text(recipients_frame, height=5)
+        self.to_text.bind("<KeyRelease>", self._update_recipients_count)
+        self.to_text.bind("<FocusOut>", self._update_recipients_count)
         self.to_text.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=4)
+
+        self.recipients_count_var = tk.StringVar(value="Получателей: 0")
+
+        ttk.Label(
+            recipients_frame,
+            textvariable=self.recipients_count_var
+        ).grid(row=0, column=2, sticky=tk.NW, padx=5)
 
         ttk.Label(recipients_frame, text="Копия CC:").grid(row=1, column=0, sticky=tk.NW)
 
@@ -284,6 +293,8 @@ class EmailSenderApp:
                 "\n".join(emails)
             )
 
+            self._update_recipients_count()
+
             messagebox.showinfo(
                 "Импорт",
                 f"Загружено {len(emails)} адресов"
@@ -294,6 +305,10 @@ class EmailSenderApp:
                 "Ошибка импорта",
                 str(exc)
             )
+
+    def _update_recipients_count(self, event=None):
+        to_list = parse_emails(self.to_text.get("1.0", tk.END))
+        self.recipients_count_var.set(f"Получателей: {len(to_list)}")
     def _check_emails(self):
         data = self._get_form_data()
 
@@ -408,6 +423,7 @@ class EmailSenderApp:
         for path in self.attachments:
             self.attachments_listbox.insert(tk.END, path)
 
+        self._update_recipients_count()
         self._on_smtp_changed()
 
     def _preview_email(self):
