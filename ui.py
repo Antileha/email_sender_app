@@ -211,6 +211,28 @@ class EmailSenderApp:
             command=self._send_emails
         ).pack(side=tk.RIGHT, padx=3)
 
+        progress_frame = ttk.Frame(frame)
+        progress_frame.pack(fill=tk.X, pady=5)
+
+        self.progress_var = tk.DoubleVar()
+
+        self.progress_bar = ttk.Progressbar(
+            progress_frame,
+            variable=self.progress_var,
+            maximum=100
+        )
+
+        self.progress_bar.pack(fill=tk.X)
+
+        self.progress_label_var = tk.StringVar(
+            value="Готов к отправке"
+        )
+
+        ttk.Label(
+            progress_frame,
+            textvariable=self.progress_label_var
+        ).pack(anchor="w")
+
         log_frame = ttk.LabelFrame(frame, text="Журнал выполнения", padding=10)
         log_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -526,7 +548,8 @@ class EmailSenderApp:
                 body=data["body"],
                 attachment_paths=data["attachments"],
                 delay_seconds=delay,
-                progress_callback=self._log
+                progress_callback=self._update_progress,
+                log_callback=self._log
             )
 
             messagebox.showinfo(
@@ -537,6 +560,18 @@ class EmailSenderApp:
         except Exception as exc:
             messagebox.showerror("Ошибка отправки", str(exc))
             self._log(f"Критическая ошибка: {exc}")
+
+    def _update_progress(self, current, total):
+
+        percent = (current / total) * 100
+
+        self.progress_var.set(percent)
+
+        self.progress_label_var.set(
+            f"Отправлено {current} из {total}"
+        )
+
+        self.root.update_idletasks()
 
     def _log(self, text):
         self.log_text.insert(tk.END, text + "\n")

@@ -61,7 +61,8 @@ def send_bulk_emails(
     body,
     attachment_paths,
     delay_seconds=1,
-    progress_callback=None
+    progress_callback=None,
+    log_callback=None
 ):
     if smtp_service == "Custom SMTP":
         smtp_server = custom_server
@@ -81,7 +82,9 @@ def send_bulk_emails(
 
         server.login(sender_email, password)
 
-        for recipient in to_list:
+        total = len(to_list)
+
+        for index, recipient in enumerate(to_list, start=1):
             try:
                 msg = build_message(
                     sender_email=sender_email,
@@ -113,8 +116,11 @@ def send_bulk_emails(
                     error=""
                 )
 
+                if log_callback:
+                    log_callback(f"Успешно отправлено: {recipient}")
+
                 if progress_callback:
-                    progress_callback(f"Успешно отправлено: {recipient}")
+                    progress_callback(index, total)
 
             except Exception as exc:
                 write_history(
@@ -129,7 +135,7 @@ def send_bulk_emails(
                     error=str(exc)
                 )
 
-                if progress_callback:
-                    progress_callback(f"Ошибка отправки {recipient}: {exc}")
+                if log_callback:
+                    log_callback(f"Ошибка отправки {recipient}: {exc}")
 
             time.sleep(max(0, delay_seconds))
