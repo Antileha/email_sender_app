@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.idea/
+.venv_email/
+
+drafts/*.json
+history/*.xlsx
+logs/*
