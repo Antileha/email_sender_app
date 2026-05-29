@@ -1,0 +1,8 @@
+/.idea
+/.venv_email
+__pycache__/
+*.pyc
+settings.json
+drafts/*.json
+history/*.xlsx
+logs/*
