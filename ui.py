@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, simpledialog
 
 from config import SMTP_SERVICES
 from draft_manager import save_draft, load_draft
@@ -18,8 +18,154 @@ class EmailSenderApp:
         self.attachments = []
         self.settings = load_settings()
 
+        self._create_menu()
+
         self._build_ui()
         self._load_default_values()
+
+    def _create_menu(self):
+
+        menubar = tk.Menu(self.root)
+
+        help_menu = tk.Menu(
+            menubar,
+            tearoff=0
+        )
+
+        help_menu.add_command(
+            label="Руководство пользователя",
+            command=self._show_help
+        )
+
+        help_menu.add_separator()
+
+        help_menu.add_command(
+            label="О программе",
+            command=self._show_about
+        )
+
+        menubar.add_cascade(
+            label="Справка",
+            menu=help_menu
+        )
+
+        self.root.config(menu=menubar)
+
+    def _show_help(self):
+
+        help_window = tk.Toplevel(self.root)
+
+        help_window.title(
+            "Руководство пользователя"
+        )
+
+        help_window.geometry(
+            "900x700"
+        )
+
+        text = tk.Text(
+            help_window,
+            wrap=tk.WORD
+        )
+
+        text.pack(
+            fill=tk.BOTH,
+            expand=True
+        )
+
+        help_text = """
+    РАБОТА С ПРОГРАММОЙ
+
+    1. Отправитель
+    Укажите адрес электронной почты.
+
+    Пример:
+    user@mail.ru
+
+    2. Пароль приложения
+
+    Для Mail.ru:
+    Настройки → Безопасность → Пароли для внешних приложений.
+
+    Для Яндекс:
+    Яндекс ID → Пароли приложений.
+
+    Для Gmail:
+    Google Account → Security → App Passwords.
+
+    3. Получатели
+
+    Можно вводить:
+    user1@mail.ru
+    user2@mail.ru
+
+    или
+
+    user1@mail.ru, user2@mail.ru
+
+    или импортировать из Excel.
+
+    4. Копия CC
+
+    Получатели будут видеть эти адреса.
+
+    5. Скрытая копия BCC
+
+    Получатели не увидят эти адреса.
+
+    6. Импорт Excel
+
+    Первый столбец должен содержать email.
+
+    Пример:
+
+    Email
+    user1@mail.ru
+    user2@mail.ru
+
+    7. Черновики
+
+    Можно сохранять и загружать рассылки.
+
+    8. Предпросмотр
+
+    Позволяет проверить письмо до отправки.
+
+    9. История
+
+    Все результаты сохраняются в Excel.
+    """
+
+        text.insert(
+            "1.0",
+            help_text
+        )
+
+        text.config(
+            state=tk.DISABLED
+        )
+
+    def _show_about(self):
+
+        messagebox.showinfo(
+            "О программе",
+            "Email Sender App\nВерсия 0.3\nРазработчик: Алексей"
+        )
+
+    def _paste_password(self):
+
+        try:
+            password = self.root.clipboard_get()
+
+            self.password_var.set(
+                password.strip()
+            )
+
+        except Exception:
+            messagebox.showerror(
+                "Ошибка",
+                "Буфер обмена пуст."
+            )
 
     def _build_ui(self):
         frame = ttk.Frame(self.root, padding=10)
@@ -73,21 +219,42 @@ class EmailSenderApp:
         ttk.Label(smtp_frame, text="Пароль приложения:").grid(row=1, column=2, sticky=tk.W, pady=5)
 
         self.password_var = tk.StringVar()
-        ttk.Entry(
+
+        self.password_entry = ttk.Entry(
             smtp_frame,
             textvariable=self.password_var,
             show="*",
             width=30
-        ).grid(row=1, column=3, padx=5, sticky=tk.W)
+        )
 
-        ttk.Label(smtp_frame, text="Задержка, сек:").grid(row=1, column=4, sticky=tk.W, pady=5)
+
+        self.password_entry.grid(
+            row=1,
+            column=3,
+            padx=5,
+            sticky=tk.W
+        )
+
+        ttk.Button(
+            smtp_frame,
+            text="Вставить",
+            command=self._paste_password
+        ).grid(row=1, column=4, padx=5, sticky=tk.W)
+
+        ttk.Button(
+            smtp_frame,
+            text="Показать",
+            command=self._toggle_password
+        ).grid(row=1, column=5, padx=5)
+
+        ttk.Label(smtp_frame, text="Задержка, сек:").grid(row=1, column=6, sticky=tk.W, pady=5)
 
         self.delay_var = tk.StringVar(value="1")
         ttk.Entry(
             smtp_frame,
             textvariable=self.delay_var,
             width=8
-        ).grid(row=1, column=5, padx=5)
+        ).grid(row=1, column=7, padx=5)
 
         recipients_frame = ttk.LabelFrame(frame, text="Получатели", padding=10)
         recipients_frame.pack(fill=tk.BOTH, expand=True, pady=8)
@@ -195,6 +362,12 @@ class EmailSenderApp:
 
         ttk.Button(
             buttons_frame,
+            text="Тестовое письмо",
+            command=self._send_test_email
+        ).pack(side=tk.LEFT, padx=3)
+
+        ttk.Button(
+            buttons_frame,
             text="Сохранить рассылку",
             command=self._save_draft
         ).pack(side=tk.LEFT, padx=3)
@@ -238,6 +411,13 @@ class EmailSenderApp:
 
         self.log_text = tk.Text(log_frame, height=8)
         self.log_text.pack(fill=tk.BOTH, expand=True)
+
+    def _toggle_password(self):
+
+        if self.password_entry.cget("show") == "*":
+            self.password_entry.config(show="")
+        else:
+            self.password_entry.config(show="*")
 
     def _load_default_values(self):
         self.smtp_service_var.set(self.settings.get("last_smtp_service", "Yandex"))
@@ -480,6 +660,74 @@ class EmailSenderApp:
 
         text.insert("1.0", preview_content)
         text.config(state=tk.DISABLED)
+
+    def _send_test_email(self):
+        data = self._get_form_data()
+
+        test_email = simpledialog.askstring(
+            "Тестовое письмо",
+            "Введите email для тестовой отправки:"
+        )
+
+        if not test_email:
+            return
+
+        valid, invalid = validate_emails([test_email])
+
+        if invalid:
+            messagebox.showerror(
+                "Ошибка",
+                f"Некорректный email: {test_email}"
+            )
+            return
+
+        if not data["sender_email"]:
+            messagebox.showerror("Ошибка", "Укажите отправителя.")
+            return
+
+        if not self.password_var.get():
+            messagebox.showerror("Ошибка", "Укажите пароль приложения.")
+            return
+
+        if not data["subject"]:
+            messagebox.showerror("Ошибка", "Укажите тему письма.")
+            return
+
+        if not data["body"]:
+            messagebox.showerror("Ошибка", "Укажите текст письма.")
+            return
+
+        self._log(f"Отправка тестового письма на {test_email}...")
+
+        try:
+            send_bulk_emails(
+                smtp_service=data["smtp_service"],
+                custom_server=data["custom_server"],
+                custom_port=int(data["custom_port"] or 587),
+                sender_email=data["sender_email"],
+                password=self.password_var.get(),
+                to_list=[test_email],
+                cc_list=data["cc"],
+                bcc_list=data["bcc"],
+                subject="[ТЕСТ] " + data["subject"],
+                body=data["body"],
+                attachment_paths=data["attachments"],
+                delay_seconds=0,
+                progress_callback=self._update_progress,
+                log_callback=self._log
+            )
+
+            messagebox.showinfo(
+                "Готово",
+                "Тестовое письмо отправлено."
+            )
+
+        except Exception as exc:
+            messagebox.showerror(
+                "Ошибка тестовой отправки",
+                str(exc)
+            )
+            self._log(f"Ошибка тестовой отправки: {exc}")
 
     def _send_emails(self):
         data = self._get_form_data()

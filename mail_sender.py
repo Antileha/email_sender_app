@@ -2,6 +2,8 @@ import os
 import smtplib
 import time
 from email.message import EmailMessage
+from email.headerregistry import Address
+from email.header import Header
 
 from config import SMTP_SERVICES
 from history import write_history
@@ -18,15 +20,15 @@ def build_message(
 ):
     msg = EmailMessage()
 
-    msg["From"] = sender_email
-    msg["To"] = recipient
+    msg["From"] = str(Header(sender_email, "utf-8"))
+    msg["To"] = str(Header(recipient, "utf-8"))
 
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
 
     # BCC не добавляем в заголовки письма.
     # Эти адреса передаются только в SMTP-список получателей.
-    msg["Subject"] = subject
+    msg["Subject"] = str(Header(subject, "utf-8"))
     msg.set_content(body)
 
     for path in attachment_paths:
