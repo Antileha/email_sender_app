@@ -2,6 +2,8 @@ import os
 import smtplib
 import time
 from email.message import EmailMessage
+from email.headerregistry import Address
+from email.header import Header
 
 from config import SMTP_SERVICES
 from history import write_history
@@ -18,15 +20,15 @@ def build_message(
 ):
     msg = EmailMessage()
 
-    msg["From"] = sender_email
-    msg["To"] = recipient
+    msg["From"] = str(Header(sender_email, "utf-8"))
+    msg["To"] = str(Header(recipient, "utf-8"))
 
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
 
     # BCC не добавляем в заголовки письма.
     # Эти адреса передаются только в SMTP-список получателей.
-    msg["Subject"] = subject
+    msg["Subject"] = str(Header(subject, "utf-8"))
     msg.set_content(body)
 
     for path in attachment_paths:
@@ -61,7 +63,8 @@ def send_bulk_emails(
     body,
     attachment_paths,
     delay_seconds=1,
-    progress_callback=None
+    progress_callback=None,
+    log_callback=None
 ):
     if smtp_service == "Custom SMTP":
         smtp_server = custom_server
@@ -75,13 +78,19 @@ def send_bulk_emails(
 
     attachment_names = ", ".join(os.path.basename(x) for x in attachment_paths)
 
+    success_count = 0
+    error_count = 0
+    failed_recipients = []
+
     with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
         if use_tls:
             server.starttls()
 
         server.login(sender_email, password)
 
-        for recipient in to_list:
+        total = len(to_list)
+
+        for index, recipient in enumerate(to_list, start=1):
             try:
                 msg = build_message(
                     sender_email=sender_email,
@@ -113,8 +122,13 @@ def send_bulk_emails(
                     error=""
                 )
 
+                success_count += 1
+
+                if log_callback:
+                    log_callback(f"Успешно отправлено: {recipient}")
+
                 if progress_callback:
-                    progress_callback(f"Успешно отправлено: {recipient}")
+                    progress_callback(index, total)
 
             except Exception as exc:
                 write_history(
@@ -129,7 +143,16 @@ def send_bulk_emails(
                     error=str(exc)
                 )
 
-                if progress_callback:
-                    progress_callback(f"Ошибка отправки {recipient}: {exc}")
+                error_count += 1
+                failed_recipients.append(recipient)
+
+                if log_callback:
+                    log_callback(f"Ошибка отправки {recipient}: {exc}")
 
             time.sleep(max(0, delay_seconds))
+
+    return {
+                "success_count": success_count,
+                "error_count": error_count,
+                "failed_recipients": failed_recipients
+            }

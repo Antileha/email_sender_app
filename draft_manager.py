@@ -1,6 +1,5 @@
 import json
 import os
-from datetime import datetime
 
 DRAFTS_DIR = "drafts"
 
@@ -9,19 +8,16 @@ def ensure_drafts_dir():
     os.makedirs(DRAFTS_DIR, exist_ok=True)
 
 
-def save_draft(data):
+def save_draft(data, file_path):
     ensure_drafts_dir()
 
-    created_at = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"draft_{created_at}.json"
-    path = os.path.join(DRAFTS_DIR, filename)
+    if not file_path.lower().endswith(".json"):
+        file_path += ".json"
 
-    data["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    with open(path, "w", encoding="utf-8") as file:
+    with open(file_path, "w", encoding="utf-8") as file:
         json.dump(data, file, ensure_ascii=False, indent=2)
 
-    return path
+    return file_path
 
 
 def load_draft(path):
