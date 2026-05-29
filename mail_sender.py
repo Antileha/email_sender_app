@@ -4,6 +4,7 @@ import time
 from email.message import EmailMessage
 from email.headerregistry import Address
 from email.header import Header
+from failed_manager import save_failed_recipients, clear_failed_recipients
 
 from config import SMTP_SERVICES
 from history import write_history
@@ -150,6 +151,11 @@ def send_bulk_emails(
                     log_callback(f"Ошибка отправки {recipient}: {exc}")
 
             time.sleep(max(0, delay_seconds))
+
+    if failed_recipients:
+        save_failed_recipients(failed_recipients)
+    else:
+        clear_failed_recipients()
 
     return {
                 "success_count": success_count,

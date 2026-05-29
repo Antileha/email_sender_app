@@ -7,6 +7,7 @@ from email_parser import parse_emails, validate_emails, find_cross_duplicates
 from mail_sender import send_bulk_emails
 from settings_manager import load_settings, save_settings
 from excel_import import load_emails_from_excel
+from failed_manager import load_failed_recipients
 
 
 class EmailSenderApp:
@@ -372,6 +373,12 @@ class EmailSenderApp:
             buttons_frame,
             text="Тестовое письмо",
             command=self._send_test_email
+        ).pack(side=tk.LEFT, padx=3)
+
+        ttk.Button(
+            buttons_frame,
+            text="Повторить ошибки",
+            command=self._retry_failed_emails
         ).pack(side=tk.LEFT, padx=3)
 
         ttk.Button(
@@ -756,6 +763,85 @@ class EmailSenderApp:
                 str(exc)
             )
             self._log(f"Ошибка тестовой отправки: {exc}")
+
+    def _retry_failed_emails(self):
+        data = self._get_form_data()
+
+        failed_recipients = load_failed_recipients()
+
+        if not failed_recipients:
+            messagebox.showinfo(
+                "Повторная отправка",
+                "Нет адресов для повторной отправки."
+            )
+            return
+
+        if not data["sender_email"]:
+            messagebox.showerror("Ошибка", "Укажите отправителя.")
+            return
+
+        if not self.password_var.get():
+            messagebox.showerror("Ошибка", "Укажите пароль приложения.")
+            return
+
+        if not data["subject"]:
+            messagebox.showerror("Ошибка", "Укажите тему письма.")
+            return
+
+        if not data["body"]:
+            messagebox.showerror("Ошибка", "Укажите текст письма.")
+            return
+
+        confirm = messagebox.askyesno(
+            "Повторная отправка",
+            f"Повторно отправить письма на {len(failed_recipients)} адресов?"
+        )
+
+        if not confirm:
+            return
+
+        self._log("Начата повторная отправка ошибок...")
+
+        try:
+            delay = int(data["delay_seconds"] or 1)
+        except ValueError:
+            delay = 1
+
+        try:
+            result = send_bulk_emails(
+                smtp_service=data["smtp_service"],
+                custom_server=data["custom_server"],
+                custom_port=int(data["custom_port"] or 587),
+                sender_email=data["sender_email"],
+                password=self.password_var.get(),
+                to_list=failed_recipients,
+                cc_list=data["cc"],
+                bcc_list=data["bcc"],
+                subject=data["subject"],
+                body=data["body"],
+                attachment_paths=data["attachments"],
+                delay_seconds=delay,
+                progress_callback=self._update_progress,
+                log_callback=self._log
+            )
+
+            self.progress_label_var.set(
+                f"Успешно: {result['success_count']}, ошибок: {result['error_count']}"
+            )
+
+            messagebox.showinfo(
+                "Готово",
+                f"Повторная отправка завершена.\n"
+                f"Успешно: {result['success_count']}\n"
+                f"Ошибок: {result['error_count']}"
+            )
+
+        except Exception as exc:
+            messagebox.showerror(
+                "Ошибка повторной отправки",
+                str(exc)
+            )
+            self._log(f"Ошибка повторной отправки: {exc}")
 
     def _send_emails(self):
         data = self._get_form_data()

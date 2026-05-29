@@ -7,7 +7,7 @@ settings.json
 drafts/*.json
 history/*.xlsx
 logs/*
-
+failed_recipients.json
 .idea/
 .venv_email/
 
